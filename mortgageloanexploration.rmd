@@ -1,0 +1,534 @@
+Exploring 2017 FHFA Mortgage Loan Data  by Alex Craver
+========================================================
+
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, packages}
+# Load all of the packages that you end up using in your analysis in this code
+# chunk.
+
+# Notice that the parameter "echo" was set to FALSE for this code chunk. This
+# prevents the code from displaying in the knitted HTML output. You should set
+# echo=FALSE for all code chunks in your file, unless it makes sense for your
+# report to show the code that generated a particular plot.
+
+# The other parameters for "message" and "warning" should also be set to FALSE
+# for other code chunks once you have verified that each plot comes out as you
+# want it to. This will clean up the flow of your report.
+
+library(ggplot2)
+library(ggthemes)
+library(RColorBrewer)
+
+library(dplyr)
+library(ggcorrplot)
+
+library(ggalt)
+
+
+
+```
+
+```{r echo=FALSE, Load_the_Data}
+# Load the Data
+loandata <- read.csv("fhfaloandata.csv")
+loandata1 <- loandata[,c(3, 4, 11, 13, 15, 17, 20, 22, 23, 24, 28, 30, 32, 33, 34, 55, 56, 59, 63)]
+
+
+```
+
+> **About the Data**: This dataset has been provided by the Federal Housing Finance Agency (FHFA). The data has been collected by Fannie Mae and Freddie Mac and is regulated by the FHFA. The data provided shows statistics about individuals and mortgages in the year 2017.  
+
+> **Variables Used**:We will look at the follow variables in this exploration:
+
+1. Bank: Name of Federal Home Loan Bank District
+2. FIPSStateCode: FIPS State Code (or number that represents a state)
+3. Income: Total borrower income in whole dollar
+4. IncRate: Borrower income ratio
+5. LTV: Loan to value ration at origination 
+6. Purpose: Loan purchase; purchasing, refinancing, second mortgage, new construction, or rehabilitation. 
+7. Product: Product type; fixed rate, ARM, baloon, GPM, Reverse Annuity, other 
+8. FedGuar: Federal guarantee
+9. First: First time homebuyer 
+10. BoRace: Borrower's race
+11. BoGender: Borrower's gender
+12. BoAge: Borrower's age
+13. Rate: Interest rate
+14. Amount: Loan amount in whole dollars 
+15. BoCreditScor: Borrower's credit score 
+
+
+
+
+# Univariate Plots Section
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, Univariate_Plots}
+theme_set(theme_classic())
+
+# Source: Frequency table
+dftry <- as.data.frame(table(loandata1$Purpose))
+colnames(dftry) <- c("Purpose", "freq")
+pie <- ggplot(dftry, aes(x = "", y=freq, fill = factor(Purpose))) + 
+  geom_bar(width = 1, stat = "identity") + #pie chart to view purpose of loans 
+  theme(axis.line = element_blank(), 
+        plot.title = element_text(hjust=0.5)) + 
+  labs(fill="Loan Purpose", 
+       x=NULL, 
+       y=NULL, 
+       title="2017 Loan Purpose Pie Chart")
+
+pie + coord_polar(theta = "y", start=0)
+
+```
+
+
+**In 2017, what were the purposes for most of the loans?**
+
+Looking at this pie chart, the Loan Purpose color is represented by numbers 1-4. 1=purchase, 2= refinancing, 3=second mortgage, 4=new construction. The majority of mortgages were being taken out for purchases and then refinancing. 
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, Univariate_Plots2}
+options(scipen= 999)
+ggplot(aes(x=Income), data= loandata1) + #plots counts borrowers income 
+  geom_histogram(bins=19) + 
+  xlim(0,500000) #omits outliers 
+
+summary(loandata1$Income)
+```
+
+
+
+**What is the average income that a person has who is taking out a loan?**
+
+The majority of those that were taking out a mortgage ran between an average annual income of $30,000-$100,000. After that, income starts to go down with only af ew outliers making $500,000 or more per year. 
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, Univariate_Plots2.5}
+ggplot(aes(x=Term/12), data=loandata1)+ #counts of terms in years 
+  geom_histogram()+
+  xlim(c(10,30))
+
+
+
+```
+
+**In years, what is the duration of most loans?**
+
+As expected, the majority of borrowers are taking out 30 year loans. It was interesting to note that there is a significant portion of borrowers taking out 20 year loans as well. Contrary to the typical 30 or 15 year loan. 
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, Univariate_Plots3}
+options(scipen= 999) #omits scientific notation
+ggplot(aes(x=Amount), data= loandata1) + #plot mortgage amount counts 
+  geom_freqpoly() + #counts number of cases 
+  xlim(0,1000000)
+
+
+summary(loandata1$Amount)
+```
+
+
+
+**What is the most common amount individuals are taking out for mortgages?**
+
+The majority of customers shopping for mortgages are taking out $250,000 and less. The median amount is $194,000, and the mean or average is about $230,053. 
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, Univariate_Plots4}
+
+
+ggplot(aes(x=BoCreditScor), data= loandata1) + #plot counts of borrowers credit score 
+  geom_bar()  #bar graph for counts 
+
+
+  summary(loandata1$BoCreditScor)
+
+```
+
+**What is the average borrowers credit score?**
+
+
+In the dataset, borrowers credit scores are listed by numbers. 1= <620, 2= 620 to 660, 3= 660 to 700, 4= 700 to 760, 5= 760 and greater, and 8= missing. The average credit score is between 4 and 5, which is in a credit score range of 700-760 +.
+
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, Univariate_Plots5}
+ggplot(aes(x=FIPSStateCode), data= loandata1) + #plot counts of numerical statecodes 
+  geom_bar()  +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+table(loandata1$FIPSStateCode)
+```
+
+**Which state saw the greatest amounts of loans in 2017?**
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, Bivariate_Plots5.2}
+max(count(loandata1, FIPSStateCode)) #find out max count of state codes 
+
+```
+
+
+State code 39, or the state of Ohio, saw 6,143 individuals with mortgages. 
+
+
+# Univariate Analysis
+
+
+
+### What is the structure of your dataset?
+```{r echo=FALSE, message=FALSE, warning=FALSE, Bivariate_Plots5.3}
+print(str(loandata1))
+
+```
+
+
+
+55990 rows and 19 columns. 
+
+
+### What is/are the main feature(s) of interest in your dataset?
+The main features of interest in the dataset are: Income, Amount, Term, Borrowers Credit Score, and Rate.  
+
+### What other features in the dataset do you think will help support your \
+investigation into your feature(s) of interest?
+Other features that may be of interst include, Loan to Value, Race, Gender, State, PropType, Purpose, BoAge.
+
+### Did you create any new variables from existing variables in the dataset?
+N/A
+
+### Of the features you investigated, were there any unusual distributions? \
+Did you perform any operations on the data to tidy, adjust, or change the form \
+of the data? If so, why did you do this?
+The dataset from FHFP was quite clean. The structure was properly laid out in it's CSV form so there was no significant changes to be made. 
+
+# Bivariate Plots Section
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, Bivariate_Plots}
+ggplot(aes(x = Term/12, y = Amount), data = loandata1) + #term by year vs loan amount
+  geom_jitter(alpha = 1/8) + #jitter points due to overplotting 
+  ylim(0,1000000)
+
+
+cor(loandata1$Term, loandata1$Amount, method = "pearson", "complete.obs")
+
+```
+
+**With increasing loan terms, does the amount of the loan increase?**
+
+
+
+Looking at the correlation coefficient between Term and Amount of .19, it reveals there is not a significant relation between how long of a term and the amount of the loan. One would assume that with a larger term a borrower would take out a larger sum of money. Is this by choice of the bank or individual? 
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, Bivariate_Plots2}
+ggplot(aes(x=Income, y = Amount),data = loandata1) + #income vs loan amount
+  geom_count(col="tomato3", show.legend=F) +
+    xlim(0, quantile(loandata1$Income, 0.95)) + #omit top 5%
+  ylim(0, quantile(loandata1$Amount, 0.95))+
+  geom_smooth(method='lm', color='black') #helps view estimate of mean using linear model 
+
+
+cor(loandata1$Income, loandata1$Amount, method = "pearson", "complete.obs")
+```
+
+**Does income affect loan amount?**
+
+
+
+With a correlation coefficient of .478, there does seem to be a larger relation than the previous observation of term to amount. If one has a larger income, it seems as if the borrower has a greater chance of taking out a larger mortage. 
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, Bivariate_Plots3}
+loandata1$BoCreditScor <- as.factor(loandata1$BoCreditScor)
+creditlabels <- c("<620", "620 < 660", "660 < 700", "700 < 760", "760 <", "Missing") #create names instead of numbers
+
+theme_set(theme_classic())
+ggplot(loandata1, mapping = aes(x = BoCreditScor, y = Rate)) + #boxplot of credit score vs rate 
+  geom_boxplot(varwidth=T, fill="plum") + 
+    labs(title="Buyer Credit Score Grouped by Interest Rate", 
+         x="Credit Score",
+         y="Interest Rate") +
+  scale_x_discrete(labels = creditlabels) #manually set labels 
+  
+
+
+```
+
+**Does credit score affect interest rate?**
+
+The boxplot reveals that there is some relation between credit score and interest rate. Those with creidt scores of 760 or greater have a larger amount of population that has interest rates of 0.03% or less. Those with credit scores under 660 or less seem to have a higher population of interest rates above 0.05%. 
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, Bivariate_Plots4}
+loandata1$FedGuar <- as.factor(loandata1$FedGuar) #change numerical to factors 
+loandata1$Product <- as.factor(loandata1$Product)
+loandata1$BoRace <- as.factor(loandata1$BoRace)
+
+ggplot(loandata1, aes(Purpose, fill = BoRace)) + #purpose of loans filled by borrowers race 
+  geom_bar(position = "dodge") +
+  scale_y_log10() +
+  scale_fill_brewer(palette="Pastel1")
+  
+
+
+```
+
+
+**What race is taking out the most mortgages and for what purpose?**
+
+Across all loan purposes (1: Purchase, 2: Refinancing, 3: Second Mortgage, 4: New Construction, 5: Rehab), it appears that white borrowers are borrrowing the most, followed by Asian borrowers, then black borrowers. 
+
+For borrower race: 1: American Indian or Alaska Native, 2: Asian, 3: Black or African American, 4: Native Hawaiian, 5: White, 6: Information not provided 
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, Bivariate_Plots5}
+loandata1$Product <- as.factor(loandata1$Product)
+loandata1$BoGender <- as.factor(loandata1$BoGender)
+
+theme_set(theme_bw())
+ggplot(aes(x=Term/12, y = Amount), data=loandata1) + #term in years vs amount
+  geom_jitter(aes(col=First))+ 
+  xlim(c(0, 30)) + #max 30 year term 
+  ylim(c(0, 500000)) + #for loans under 500000
+  labs(title="Term Vs Amount", 
+       y="Amount", 
+       x="Term in Years")
+  
+
+
+```
+
+
+**What is the duration of loans and amount in relation to first time home buyers or not?**
+
+First time home buyers are represented by 1. It appears that the majority of first time homebuyers are taking out close to 30 year loans and generally under $300,000. 
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, Bivariate_Plots4.5}
+ggplot(aes(x=PropType, y =Amount), data=loandata1) + #property type vs amount
+    geom_jitter(aes(col=First))+ #fill by first time home buyer 
+  ylim(c(0, 500000)) + 
+  labs(title="Property Type Vs Amount", 
+       y="Amount", 
+       x="Property Type")
+  
+
+
+```
+
+**What is the relation between between Property type (PT01-Single Family detached, PT02-Deminums PUD, PT03-Single Family Attached, PT04-Two Family, PT05-Townhouse, PT06-Low-Rise Condo, PT07-PUD, PT08-Duplex, PT09-Three Family, PT10-Four Family, PT11-Hi Rise Condo, PT12-Manufactured Home) and amount of loan? What kind of homes are first-time home buyers buying vs non-first time home buyers?**
+
+
+The bulk of home buyers are purchasing single family detached homes. The majority of first time home bueyrs are purchasing hi rise condos. 
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, Bivariate_Plots6}
+ggplot(aes(x=LTV, y=Amount),data=loandata1)+ #ltv vs amount
+  geom_jitter(alpha=1/20) +
+  xlim(0, quantile(loandata1$LTV, 0.95)) + #top 95%
+  ylim(0, quantile(loandata1$Amount, 0.95)) 
+  
+
+cor(loandata1$LTV, loandata1$Amount, method = "pearson", "complete.obs") #correlation coefficient 
+```
+
+**What can be seen from LTV vs Amount?**
+The relation between amount and loan to value seems to be that LTV increases as the amount of the loan increases. Across all amounts, 80% seems to be the LTV infering that most people are putting down payments of 20% to cover the remaining balance of the purchase price.  
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, Bivariate_Plots7}
+loandata1$BoGender <- as.factor(loandata1$BoGender)
+
+ggplot(loandata1, aes(x = BoAge)) + #histogram of borrowers age 
+  geom_histogram(color='firebrick') + 
+  facet_wrap(~BoGender) #facetwrap to create to plots 1 for male 2 for female 
+  
+
+
+```
+
+
+**What is the count of borrower's age in relation to gender?**
+
+There seems to be much more females purchasing in 2017. Males are listed as 1, and females are listed as 2. For both genders, the average age to purchase is around 30 years of age. There seems to be a spike around the age of 100. This could be possibly due to invalid data. 
+
+
+
+
+
+
+# Bivariate Analysis
+
+> **Tip**: As before, summarize what you found in your bivariate explorations
+here. Use the questions below to guide your discussion.
+
+### Talk about some of the relationships you observed in this part of the \
+investigation. How did the feature(s) of interest vary with other features in \
+the dataset?
+
+The most simple observation from the bivariate analysis was the relation of income to amount borrowed. It was the easiest to see that with larger income comes larger amount borrowed. However, there are several other variables that broke down some insight between amount borrowed. Credit scores seem to be important to interest rates; the better the score, the better the chance of having an interest rate around 3-4%. 
+
+### Did you observe any interesting relationships between the other features \
+(not the main feature(s) of interest)?
+It was interesting to see that females had a much larger amount of loans taken out then men. 
+
+### What was the strongest relationship you found?
+The strongest relationship found was between income and amount borrowed. 
+
+# Multivariate Plots Section
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, Multivariate_Plots}
+loandata1$First <- as.factor(loandata1$First)
+
+options(scipen = 999)
+
+loan_select <- loandata1[loandata1$Term/12 > 0 & #create section to circle 
+                            loandata1$Term/12 <= 15 & 
+                            loandata1$Amount > 400000 & 
+                            loandata1$Amount < 500000, ]
+
+
+ggplot(loandata1, aes(x=Term/12, y=Amount)) + 
+  geom_point(aes(col=First, size=IncRat)) +  #color points by first time buyer or not and size by income ratio
+  geom_smooth(method="loess", se=F) + 
+  xlim(c(0, 30)) + 
+  ylim(c(0, 500000)) +   # draw smoothing line
+  geom_encircle(aes(x=Term/12, y=Amount), 
+                data=loan_select, 
+                color="red", 
+                size=2, 
+                expand=0.08) +   # encircle
+  labs(subtitle="Highlighting Smaller Terms with High Mortgage", 
+       y="Term in Years", 
+       x="Amount", 
+       title="Term Vs Amount")
+
+
+cor(loandata1$Rate, loandata1$Amount, "pearson", use="complete.obs")
+
+```
+**What is the relation between term and amount?**
+
+There did not seem to be a significant replationship between loan term and amount taken out. This plot also showed first time home buyers and borrower income ratios. Encircled are those that have taken out shorter loan periods and borrowed over $400,000. 
+
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, Multivariate_Plots2}
+loandata1$BoCreditScor <- as.factor(loandata1$BoCreditScor)
+
+
+ggplot(aes(x=IncRat, y=Amount), data=loandata1) + #income ratio vs amount
+  labs(subtitle="with Loan Purpose and Credit score",
+       title="Borrower Income Ratio vs. Loan Amount",
+       x= "Borrower Income Ratio",
+       y = "Loan Amount",
+       col = "Loan Purpose", #color by categorical loan purpose 
+       size = "Credit Score") + #size by credit score 
+  geom_jitter(aes(col=Purpose, size=BoCreditScor)) +
+  xlim(c(0,60)) #percentage 
+
+
+cor(loandata1$IncRat, loandata1$Amount, "pearson", use="complete.obs")
+
+```
+
+
+**What is the relationship of borrower income ratio to loan amount?**
+For the most part, it seems as if lenders prefer borrower income rations to be under 20%. There also seems to be a preference for higher credit scores and the majority of the purchases are for home purchases. 
+With a correlation coefficient of about 35%, there is a small relationship between borrower income ration to loan amount.
+
+
+# Multivariate Analysis
+
+### Talk about some of the relationships you observed in this part of the \
+investigation. Were there features that strengthened each other in terms of \
+looking at your feature(s) of interest?
+Looking at borrower income ration to loan amont, it showed that lenders prefer more financially responsible borrowers. The graph also revealed a preference for credit scores in the range of 700+. 
+### Were there any interesting or surprising interactions between features?
+It was interesting to seee that the majority of loans were within the confines of about 20% borrower income ratio. 
+
+
+------
+
+# Final Plots and Summary
+
+
+### Plot One
+```{r echo=FALSE, message=FALSE, warning=FALSE, Plot_One}
+
+
+loandata1 %>%
+   filter(FIPSStateCode == 24) %>% #filter Maryland state code 
+  ggplot(aes(x=BoCreditScor,y=Amount)) + #credit score vs amount 
+    geom_jitter(size=5, alpha=.8, color="aquamarine4") +
+    ggtitle("Maryland's Mortgage Amount vs. Credit Rate") +
+    labs(x="Credit Score",y="Mortgage Amount")
+
+```
+
+### Description One
+For the final project, I decided to narrow down the data to a state level and selected my home state of Maryland. This plot looks at the credit score of borrowers from Maryland vs. Mortgage amounts. The x-axis is BoCredScor, which is the borrowers credit score. The y axis is the amount, or amount of the borrower's mortgage. 
+
+
+From the graph, it is clear that the lenders preferred credit score is between the 4 and 5 tick, so from a credit score of 700 and greater. Additionally, mortgages are being taken out for a large amount with the majority between $400,000-$600,000. 
+
+### Plot Two
+```{r echo=FALSE, message=FALSE, warning=FALSE, Plot_Two}
+
+loandata1 %>%
+   filter(FIPSStateCode == 24) %>%
+ ggplot(aes(x=Income, y= Amount, color=factor(FedGuar)))+ #income vs amount colored by federal guarantee 
+  geom_point()+ggtitle("Maryland Borrowers: Income vs. Amount Borrowed")+
+  theme_economist()+
+  scale_colour_economist() #color scheme 
+
+
+```
+
+### Description Two
+This plot looks at the relation between Maryland borrowers income and amount and colored if the loan has a federal guarantee. The x axis is the borrowers income, and the y axis is the amount of the mortgage. The points are colored by federal guarantee. The federal guarantees are 0: no federal guarantee, 1: FHA, 2: VA, 3: FMHA, 4:HECMS. 
+
+As a result of the plot, it looks like a positive relationship between income and amount.The majority of loans look like they have no federal guarantee, but there are several loans taken out as FHA loans. 
+
+### Plot Three
+```{r echo=FALSE, message=FALSE, warning=FALSE, Plot_Three}
+loandata1 %>%
+   filter(FIPSStateCode == 24) %>% #filter maryland 
+ggplot(aes(x=BoCreditScor, y=Rate)) + #borrowers credit score vs rate 
+  geom_violin(alpha=0.5, color="gray")+ #violin boxplot 
+  geom_jitter(alpha=0.5, aes(color=PropType), #color by property type 
+      position = position_jitter(width = 0.1))+
+  coord_flip() +
+  labs(x="Borrowers Credit Score", y="Interest Rate", title="Maryland Borrower Credit Score vs. Interest Rate")
+
+```
+
+### Description Three
+This third graph looks at borrowers in Maryland and their credit score vs their interest rate. A better credit score will be 4 or 5. A better interest rate will be closer to zero.
+
+Looking at the graph, borrowers with higher credit scores (closer to 5), tend to have lower interest rates than borrowers with worse credit score(1 or 2). The colored points notate the type of property they have purchased.There seem to be several purchases of planned unit developments and interest rates typically sit between 3.75 and 4.5. 
+
+
+------
+
+# Reflection
+
+The mortgage loan dataset represents close to 56,000 loans across 19 variables from 2017. The source website had a great listing of data definitions, so I started by printing out the definitions and circling which ones I thought would be most useful for my analysis. 
+
+I started with a few datasets, one on gun data, jail data, and another bank loan dataset provided by Udacity, but found this one more interesting after having just gone through the mortgage process most recently myself. It gave me insight on how a lender goes about approving lenders, and what kind of risks are involved when distributing loans. The analysis supports finding a borrower that is financially responsible and has a generally safe background in terms of credit usage, income, and borrower income ratio.  
+
+Some challenges I faced were getting graphs to show up. There were a few instances I could not get categorical variables to display, but after some Google research, I was able to figure out that most of the dataset was numberical, and several variables had to be adjusted to factors. I also had trouble with some of the visualizations so I referenced several helpful websites that gave examples of better looking plots. 
+
+
+A question I would pose if I was to do this again would be how does this dataset in the year 2017 compare to that say of 2008 when there was a housing crash? Or even the year after? Did interest rates shoot up? Did the amount of borrowers decline? A more detailed analysis looking at multiple years could be beneficial for trends and changes over time. 
+
+
+
+> **Resources**: 
+http://r-statistics.co/Top50-Ggplot2-Visualizations-MasterList-R-Code.html
+https://stackoverflow.com/questions/20529252/changing-x-axis-tick-labels-in-r-using-ggplot2
+https://www.r-bloggers.com/r-using-rcolorbrewer-to-colour-your-figures-in-r/
+https://www.youtube.com/watch?v=WpMT4RvPzx8
+https://www.fhfa.gov/DataTools/Downloads/Pages/Public-Use-Databases.aspx
+https://stackoverflow.com/questions/1330989/rotating-and-spacing-axis-labels-in-ggplot2
+https://www.sharpsightlabs.com/blog/data-analysis-example-r-supercars-part2/
+http://zevross.com/blog/2014/08/04/beautiful-plotting-in-r-a-ggplot2-cheatsheet-3/
+https://www.statmethods.net/input/contents.html
+https://rmarkdown.rstudio.com/authoring_basics.html
